@@ -31,6 +31,7 @@ namespace JobPortal.Api.Controllers
                 .Include(j => j.Department)
                 .Include(j => j.JobSkills)
                     .ThenInclude(js => js.Skill)
+                .Where(j => !j.IsFilled) // Only show unfilled jobs
                 .AsQueryable();
 
             if (!string.IsNullOrEmpty(search))
@@ -57,6 +58,50 @@ namespace JobPortal.Api.Controllers
                 Skills = j.JobSkills.Select(js => js.Skill.Name).ToList(),
                 IsFavorited = currentUserId.HasValue && _context.Favorites.Any(f => f.UserId == currentUserId && f.JobId == j.JobId),
                 HasApplied = currentUserId.HasValue && _context.Applications.Any(a => a.UserId == currentUserId && a.JobId == j.JobId)
+            }).ToListAsync();
+
+            return Ok(jobs);
+        }
+
+        // Add employer-specific endpoint to see ALL jobs (including filled ones)
+        [HttpGet("employer")]
+        [Authorize(Roles = "Employer")]
+        public async Task<ActionResult<IEnumerable<JobDto>>> GetEmployerJobs([FromQuery] bool includeFilledJobs = true)
+        {
+            var currentUserId = GetCurrentUserId();
+            var user = await _context.Users.FindAsync(currentUserId);
+
+            if (user?.CompanyId == null)
+                return BadRequest("User must be associated with a company");
+
+            var query = _context.Jobs
+                .Include(j => j.Company)
+                .Include(j => j.Department)
+                .Include(j => j.JobSkills)
+                    .ThenInclude(js => js.Skill)
+                .Where(j => j.CompanyId == user.CompanyId);
+
+            // Optionally filter out filled jobs for employer view
+            if (!includeFilledJobs)
+            {
+                query = query.Where(j => !j.IsFilled);
+            }
+
+            var jobs = await query.Select(j => new JobDto
+            {
+                JobId = j.JobId,
+                Title = j.Title,
+                Description = j.Description,
+                Location = j.Location,
+                SalaryMin = j.SalaryMin,
+                SalaryMax = j.SalaryMax,
+                CompanyName = j.Company.Name,
+                DepartmentName = j.Department.Name,
+                CreatedAt = j.CreatedAt,
+                Skills = j.JobSkills.Select(js => js.Skill.Name).ToList(),
+                IsFavorited = false, // Not applicable for employer view
+                HasApplied = false,  // Not applicable for employer view
+                IsFilled = j.IsFilled // Add this to JobDto
             }).ToListAsync();
 
             return Ok(jobs);
@@ -95,6 +140,7 @@ namespace JobPortal.Api.Controllers
 
             return Ok(jobDto);
         }
+        
 
         [HttpPost]
         [Authorize(Roles = "Employer")]
@@ -106,29 +152,57 @@ namespace JobPortal.Api.Controllers
             if (user?.CompanyId == null)
                 return BadRequest("User must be associated with a company");
 
-            var job = new Job
-            {
-                Title = dto.Title,
-                Description = dto.Description,
-                Location = dto.Location,
-                SalaryMin = dto.SalaryMin,
-                SalaryMax = dto.SalaryMax,
-                CreatedBy = currentUserId.Value,
-                CompanyId = user.CompanyId.Value,
-                DepartmentId = dto.DepartmentId
-            };
+            // Validate that all skillIds exist and are unique
+            var uniqueSkillIds = dto.SkillIds.Distinct().ToList();
+            var existingSkills = await _context.Skills
+                .Where(s => uniqueSkillIds.Contains(s.SkillId))
+                .Select(s => s.SkillId)
+                .ToListAsync();
 
-            _context.Jobs.Add(job);
-            await _context.SaveChangesAsync();
-
-            // Add job skills
-            foreach (var skillId in dto.SkillIds)
+            if (existingSkills.Count != uniqueSkillIds.Count)
             {
-                _context.JobSkills.Add(new JobSkill { JobId = job.JobId, SkillId = skillId });
+                return BadRequest("One or more selected skills do not exist");
             }
-            await _context.SaveChangesAsync();
 
-            return await GetJob(job.JobId);
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var job = new Job
+                {
+                    Title = dto.Title,
+                    Description = dto.Description,
+                    Location = dto.Location,
+                    SalaryMin = dto.SalaryMin,
+                    SalaryMax = dto.SalaryMax,
+                    CreatedBy = currentUserId.Value,
+                    CompanyId = user.CompanyId.Value,
+                    DepartmentId = dto.DepartmentId,
+                    IsFilled = false // Add this if you're implementing the hiring workflow
+                };
+
+                _context.Jobs.Add(job);
+                await _context.SaveChangesAsync();
+
+                // Add job skills - only add unique skills
+                foreach (var skillId in uniqueSkillIds)
+                {
+                    _context.JobSkills.Add(new JobSkill
+                    {
+                        JobId = job.JobId,
+                        SkillId = skillId
+                    });
+                }
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return await GetJob(job.JobId);
+            }
+            catch (Exception)
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
 
         [HttpPut("{id}")]
@@ -181,6 +255,42 @@ namespace JobPortal.Api.Controllers
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             return int.TryParse(userIdClaim, out var userId) ? userId : null;
+        }
+
+        [HttpGet("employer")]
+        [Authorize(Roles = "Employer")]
+        public async Task<ActionResult<IEnumerable<JobDto>>> GetEmployerJobs()
+        {
+            var currentUserId = GetCurrentUserId();
+            var user = await _context.Users.FindAsync(currentUserId);
+
+            if (user?.CompanyId == null)
+                return BadRequest("User must be associated with a company");
+
+            var jobs = await _context.Jobs
+                .Include(j => j.Company)
+                .Include(j => j.Department)
+                .Include(j => j.JobSkills)
+                    .ThenInclude(js => js.Skill)
+                .Where(j => j.CompanyId == user.CompanyId)
+                .Select(j => new JobDto
+                {
+                    JobId = j.JobId,
+                    Title = j.Title,
+                    Description = j.Description,
+                    Location = j.Location,
+                    SalaryMin = j.SalaryMin,
+                    SalaryMax = j.SalaryMax,
+                    CompanyName = j.Company.Name,
+                    DepartmentName = j.Department.Name,
+                    CreatedAt = j.CreatedAt,
+                    Skills = j.JobSkills.Select(js => js.Skill.Name).ToList(),
+                    IsFavorited = false, // Not applicable for employer view
+                    HasApplied = false   // Not applicable for employer view
+                })
+                .ToListAsync();
+
+            return Ok(jobs);
         }
     }
 }

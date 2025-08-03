@@ -14,6 +14,7 @@
         public List<string> Skills { get; set; } = new List<string>();
         public bool IsFavorited { get; set; } = false;
         public bool HasApplied { get; set; } = false;
+        public bool IsFilled { get; set; } = false;
     }
 
 }

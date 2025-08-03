@@ -13,5 +13,6 @@ namespace JobPortal.Api.Models.DTOs.User
         public int? CompanyId { get; set; }
         public string? CompanyName { get; set; }
         public DateTime CreatedAt { get; set; }
+        public EmploymentDto? CurrentEmployment { get; set; }
     }
 }

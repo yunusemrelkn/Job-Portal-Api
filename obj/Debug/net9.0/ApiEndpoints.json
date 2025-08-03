@@ -683,6 +683,52 @@
     "ReturnTypes": []
   },
   {
+    "ContainingType": "JobPortal.Api.Controllers.JobsController",
+    "Method": "GetEmployerJobs",
+    "RelativePath": "api/Jobs/employer",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "includeFilledJobs",
+        "Type": "System.Boolean",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "System.Collections.Generic.IEnumerable\u00601[[JobPortal.Api.Models.DTOs.Job.JobDto, JobPortal.Api, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "JobPortal.Api.Controllers.JobsController",
+    "Method": "GetEmployerJobs",
+    "RelativePath": "api/Jobs/employer",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": [
+      {
+        "Type": "System.Collections.Generic.IEnumerable\u00601[[JobPortal.Api.Models.DTOs.Job.JobDto, JobPortal.Api, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
     "ContainingType": "JobPortal.Api.Controllers.SectorsController",
     "Method": "GetSectors",
     "RelativePath": "api/Sectors",
@@ -772,32 +818,6 @@
     "IsController": true,
     "Order": 0,
     "Parameters": [],
-    "ReturnTypes": [
-      {
-        "Type": "JobPortal.Api.Models.DTOs.User.UserDto",
-        "MediaTypes": [
-          "text/plain",
-          "application/json",
-          "text/json"
-        ],
-        "StatusCode": 200
-      }
-    ]
-  },
-  {
-    "ContainingType": "JobPortal.Api.Controllers.UsersController",
-    "Method": "UpdateProfile",
-    "RelativePath": "api/Users/profile",
-    "HttpMethod": "PUT",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
-      {
-        "Name": "dto",
-        "Type": "JobPortal.Api.Models.DTOs.User.UpdateUserDto",
-        "IsRequired": true
-      }
-    ],
     "ReturnTypes": [
       {
         "Type": "JobPortal.Api.Models.DTOs.User.UserDto",

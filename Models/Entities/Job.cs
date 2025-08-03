@@ -34,6 +34,8 @@ namespace JobPortal.Api.Models.Entities
         [Column(TypeName = "decimal(10,2)")]
         public decimal? SalaryMax { get; set; }
 
+        public bool IsFilled { get; set; } = false;
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         // Navigation properties

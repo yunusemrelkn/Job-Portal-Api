@@ -109,21 +109,76 @@ namespace JobPortal.Api.Controllers
             if (application == null)
                 return NotFound();
 
-            application.Status = status;
-            await _context.SaveChangesAsync();
+            // Check if job is already filled
+            if (application.Job.IsFilled && status == ApplicationStatus.Accepted)
+                return BadRequest("This job position has already been filled");
 
-            return Ok(new ApplicationDto
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
             {
-                ApplicationId = application.ApplicationId,
-                UserId = application.UserId,
-                ApplicantName = application.User.Name + " " + application.User.Surname,
-                ApplicantEmail = application.User.Email,
-                JobId = application.JobId,
-                JobTitle = application.Job.Title,
-                Status = application.Status,
-                CreatedAt = application.CreatedAt
-            });
+                // Update the specific application status
+                application.Status = status;
+
+                // If accepting a candidate
+                if (status == ApplicationStatus.Accepted)
+                {
+                    // 1. Mark the job as filled
+                    application.Job.IsFilled = true;
+
+                    // 2. Assign the candidate to the company
+                    var candidate = application.User;
+                    if (candidate.Role == UserRole.JobSeeker)
+                    {
+                        candidate.CompanyId = application.Job.CompanyId;
+                        candidate.Role = UserRole.Employer; // Or keep as JobSeeker if you want them to remain job seekers
+                    }
+
+                    // 3. Create CompanyWorker record for detailed employment tracking
+                    var companyWorker = new CompanyWorker
+                    {
+                        CompanyId = application.Job.CompanyId,
+                        UserId = candidate.UserId,
+                        DepartmentId = application.Job.DepartmentId
+                    };
+                    _context.CompanyWorkers.Add(companyWorker);
+
+                    // 4. Auto-reject all other pending applications for this job
+                    var pendingApplications = await _context.Applications
+                        .Where(a => a.JobId == application.JobId &&
+                                   a.ApplicationId != application.ApplicationId &&
+                                   a.Status == ApplicationStatus.Pending)
+                        .ToListAsync();
+
+                    foreach (var pendingApp in pendingApplications)
+                    {
+                        pendingApp.Status = ApplicationStatus.Rejected;
+                    }
+
+                    _context.Applications.UpdateRange(pendingApplications);
+                }
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return Ok(new ApplicationDto
+                {
+                    ApplicationId = application.ApplicationId,
+                    UserId = application.UserId,
+                    ApplicantName = application.User.Name + " " + application.User.Surname,
+                    ApplicantEmail = application.User.Email,
+                    JobId = application.JobId,
+                    JobTitle = application.Job.Title,
+                    Status = application.Status,
+                    CreatedAt = application.CreatedAt
+                });
+            }
+            catch (Exception)
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
+
 
         [HttpGet("{id}/cv")]
         [Authorize(Roles = "Employer")]

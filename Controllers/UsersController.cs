@@ -29,10 +29,17 @@ namespace JobPortal.Api.Controllers
             var currentUserId = GetCurrentUserId();
             var user = await _context.Users
                 .Include(u => u.Company)
+                .Include(u => u.CompanyWorkers)
+                    .ThenInclude(cw => cw.Company)
+                .Include(u => u.CompanyWorkers)
+                    .ThenInclude(cw => cw.Department)
                 .FirstOrDefaultAsync(u => u.UserId == currentUserId);
 
             if (user == null)
                 return NotFound();
+
+            // Get employment information
+            var employmentInfo = user.CompanyWorkers.FirstOrDefault();
 
             return Ok(new UserDto
             {
@@ -44,38 +51,16 @@ namespace JobPortal.Api.Controllers
                 Role = user.Role,
                 CompanyId = user.CompanyId,
                 CompanyName = user.Company?.Name,
-                CreatedAt = user.CreatedAt
-            });
-        }
+                CreatedAt = user.CreatedAt,
 
-        [HttpPut("profile")]
-        public async Task<ActionResult<UserDto>> UpdateProfile(UpdateUserDto dto)
-        {
-            var currentUserId = GetCurrentUserId();
-            var user = await _context.Users
-                .Include(u => u.Company)
-                .FirstOrDefaultAsync(u => u.UserId == currentUserId);
-
-            if (user == null)
-                return NotFound();
-
-            user.Name = dto.Name;
-            user.Surname = dto.Surname;
-            user.Phone = dto.Phone;
-
-            await _context.SaveChangesAsync();
-
-            return Ok(new UserDto
-            {
-                UserId = user.UserId,
-                Name = user.Name,
-                Surname = user.Surname,
-                Email = user.Email,
-                Phone = user.Phone,
-                Role = user.Role,
-                CompanyId = user.CompanyId,
-                CompanyName = user.Company?.Name,
-                CreatedAt = user.CreatedAt
+                // Enhanced employment information
+                CurrentEmployment = employmentInfo != null ? new EmploymentDto
+                {
+                    CompanyName = employmentInfo.Company.Name,
+                    DepartmentName = employmentInfo.Department.Name,
+                    CompanyLocation = employmentInfo.Company.Location,
+                    StartDate = user.CreatedAt // You might want to add a separate employment start date
+                } : null
             });
         }
 
