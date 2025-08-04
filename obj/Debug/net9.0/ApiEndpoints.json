@@ -812,12 +812,48 @@
   },
   {
     "ContainingType": "JobPortal.Api.Controllers.UsersController",
+    "Method": "GetPasswordInfo",
+    "RelativePath": "api/Users/password-info",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "JobPortal.Api.Controllers.UsersController",
     "Method": "GetProfile",
     "RelativePath": "api/Users/profile",
     "HttpMethod": "GET",
     "IsController": true,
     "Order": 0,
     "Parameters": [],
+    "ReturnTypes": [
+      {
+        "Type": "JobPortal.Api.Models.DTOs.User.UserDto",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "JobPortal.Api.Controllers.UsersController",
+    "Method": "UpdateProfile",
+    "RelativePath": "api/Users/profile",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "JobPortal.Api.Models.DTOs.User.UpdateUserDto",
+        "IsRequired": true
+      }
+    ],
     "ReturnTypes": [
       {
         "Type": "JobPortal.Api.Models.DTOs.User.UserDto",

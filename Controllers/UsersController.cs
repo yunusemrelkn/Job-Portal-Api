@@ -112,7 +112,36 @@ namespace JobPortal.Api.Controllers
         }
 
         [HttpPost("change-password")]
-        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
+        public async Task<IActionResult> ChangePassword([FromBody] Models.DTOs.Others.ChangePasswordDto dto)
+        {
+            var currentUserId = GetCurrentUserId();
+            var user = await _context.Users.FindAsync(currentUserId);
+
+            if (user == null)
+                return NotFound("User not found");
+
+            // Verify current password
+            if (!_passwordService.VerifyPassword(dto.CurrentPassword, user.PasswordHash))
+                return BadRequest("Current password is incorrect");
+
+            // Additional validation (optional but recommended)
+            if (dto.NewPassword == dto.CurrentPassword)
+                return BadRequest("New password must be different from current password");
+
+            // Hash the new password
+            user.PasswordHash = _passwordService.HashPassword(dto.NewPassword);
+
+            // Update timestamp (optional)
+            // You might want to add a PasswordChangedAt field to track when password was last changed
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Password changed successfully" });
+        }
+
+        // Optional: Add password history endpoint
+        [HttpGet("password-info")]
+        public async Task<ActionResult<object>> GetPasswordInfo()
         {
             var currentUserId = GetCurrentUserId();
             var user = await _context.Users.FindAsync(currentUserId);
@@ -120,13 +149,13 @@ namespace JobPortal.Api.Controllers
             if (user == null)
                 return NotFound();
 
-            if (!_passwordService.VerifyPassword(dto.CurrentPassword, user.PasswordHash))
-                return BadRequest("Current password is incorrect");
-
-            user.PasswordHash = _passwordService.HashPassword(dto.NewPassword);
-            await _context.SaveChangesAsync();
-
-            return Ok();
+            return Ok(new
+            {
+                // You can add a PasswordChangedAt field to User model to track this
+                LastChanged = "Not available", // Replace with actual field when implemented
+                RequiresChange = false, // You can implement password expiry logic here
+                AccountCreated = user.CreatedAt
+            });
         }
 
         private int? GetCurrentUserId()
