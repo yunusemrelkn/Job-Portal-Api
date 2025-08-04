@@ -1,4 +1,5 @@
-﻿using JobPortal.Api.Models.Entities;
+﻿using JobPortal.Api.Models.DTOs.Company;
+using JobPortal.Api.Models.Entities;
 
 namespace JobPortal.Api.Models.DTOs.User
 {
